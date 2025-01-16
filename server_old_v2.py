@@ -4,7 +4,6 @@ import pandas as pd
 import pickle
 import re
 import numpy as np
-from sklearn.preprocessing import LabelEncoder
 
 
 app = Flask(__name__)
@@ -33,36 +32,15 @@ def getTreatmentDetails():
     df_treatments = pd.read_csv('DB/symptom_treatments.csv', encoding='ISO-8859-1')
 
 
-# Define the CustomLabelEncoder class (same as in your training script)
-# class CustomLabelEncoder:
-#     def __init__(self, start=0):
-#         self.start = start
-#         self.classes_ = []
-    
-#     def fit_transform(self, y):
-#         self.classes_ = sorted(set(y))  # Get unique classes
-#         class_map = {class_: i for i, class_ in enumerate(self.classes_)}
-#         return np.array([class_map[class_] + self.start for class_ in y])
-class CustomLabelEncoder(LabelEncoder):
-    def __init__(self, start=0):
-        self.start = start
-        super().__init__()
 
-    def fit_transform(self, y):
-        encoded = super().fit_transform(y)
-        encoded += self.start
-        return encoded
-    
-    #def inverse_transform(self, y):
-     #   return [self.classes_[i - self.start] for i in y]  # Inverse transformation
    
 
 # Load the saved models and encoders
 with open("Models/rf_model.pkl", "rb") as model_file:
     rf_model = pickle.load(model_file)
 
-with open("Models/label_encoder.pkl", "rb") as le_file:
-    encoder = pickle.load(le_file)
+# with open("Models/label_encoder.pkl", "rb") as le_file:
+#     encoder = pickle.load(le_file)
 
 with open("Models/mlb.pkl", "rb") as mlb_file:
     mlb = pickle.load(mlb_file)
@@ -134,51 +112,51 @@ def get_illess_name():
 
 
 # Predict user's diseases
-@app.route('/predictthediseases', methods = ['POST'])
-def predictthediseases():
-    try:
+# @app.route('/predictthediseases', methods = ['POST'])
+# def predictthediseases():
+#     try:
 
-        data = request.json
-        symptoms =  data.get('symptoms', "")
+#         data = request.json
+#         symptoms =  data.get('symptoms', "")
 
-        print('symptoms', symptoms)
+#         print('symptoms', symptoms)
         
-        if not symptoms:
-            return jsonify({"error": "No symptoms provided."}), 400
+#         if not symptoms:
+#             return jsonify({"error": "No symptoms provided."}), 400
 
 
-        false_return = 'Not_Available'
-        no_null_count = len([s for s in symptoms if s])
+#         false_return = 'Not_Available'
+#         no_null_count = len([s for s in symptoms if s])
 
-        # If user select less than 1 symptom return 'NO'
-        if no_null_count <= 1:
-            return jsonify({"predicted_illness" : false_return})
+#         # If user select less than 1 symptom return 'NO'
+#         if no_null_count <= 1:
+#             return jsonify({"predicted_illness" : false_return})
 
-        basic_tokens = strip_to_basic_tokens(symptoms)
+#         basic_tokens = strip_to_basic_tokens(symptoms)
 
-        one_hot_encoded_sample = mlb.transform([basic_tokens])
+#         one_hot_encoded_sample = mlb.transform([basic_tokens])
 
-        one_hot_df = pd.DataFrame(one_hot_encoded_sample, columns=mlb.classes_)
+#         one_hot_df = pd.DataFrame(one_hot_encoded_sample, columns=mlb.classes_)
 
-        missing_columns = set(mlb.classes_) - set(one_hot_df.columns)
-        for col in missing_columns:
-            one_hot_df[col] = 0
+#         missing_columns = set(mlb.classes_) - set(one_hot_df.columns)
+#         for col in missing_columns:
+#             one_hot_df[col] = 0
 
-        one_hot_df = one_hot_df[mlb.classes_]
+#         one_hot_df = one_hot_df[mlb.classes_]
 
-        y_pred = rf_model.predict(one_hot_df)
+#         y_pred = rf_model.predict(one_hot_df)
 
-        if not y_pred.any():
-            return jsonify({"predicted_disease": "No_Matching"}), 200
+#         if not y_pred.any():
+#             return jsonify({"predicted_disease": "No_Matching"}), 200
 
-        predicted_class_index = np.argmax(y_pred)
-        predicted_disease = encoder.inverse_transform([predicted_class_index])[0]
+#         predicted_class_index = np.argmax(y_pred)
+#         predicted_disease = encoder.inverse_transform([predicted_class_index])[0]
 
-        return jsonify({"predicted_disease": predicted_disease}), 200
+#         return jsonify({"predicted_disease": predicted_disease}), 200
 
 
-    except Exception as e:
-        return jsonify({"error" : str(e)}), 500
+#     except Exception as e:
+#         return jsonify({"error" : str(e)}), 500
     
 
 # Get illness preventions and treatments
