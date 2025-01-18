@@ -2,13 +2,20 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 import pandas as pd
 
+
+
+    
 app = Flask(__name__)
 CORS(app)
 
 
 def getSymptomCSV():
     global df_symptoms
-    df_symptoms = pd.read_csv('Symptoms.csv')
+    df_symptoms = pd.read_csv('DB/Symptoms.csv')
+
+
+
+    
 
 # Get diseases names based on symptoms
 @app.route('/get_diseases_name', methods= ['POST'])
@@ -33,6 +40,8 @@ def get_diseases_name():
 
     except Exception as e:
         return jsonify({"error" : str(e)}), 500
+
+
 
 if __name__ == '__main__':
     app.run(debug=True)
