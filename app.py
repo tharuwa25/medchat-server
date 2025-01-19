@@ -5,18 +5,8 @@ import re
 import pickle
 import numpy as np
 from sklearn.preprocessing import LabelEncoder
-
-class CustomLabelEncoder(LabelEncoder):
-    def __init__(self, start=0):
-        self.start = start
-        super().__init__()
-
-    def fit_transform(self, y):
-        encoded = super().fit_transform(y)
-        encoded += self.start
-        return encoded
-
-
+from transformers import BertTokenizer, TFBertForSequenceClassification
+import tensorflow as tf
     
 app = Flask(__name__)
 CORS(app)
@@ -41,24 +31,14 @@ def getTreatmentDetails():
     df_treatments = pd.read_csv('DB/symptom_treatments.csv', encoding='ISO-8859-1')
 
 
-# Load the saved models and encoders **after** defining the class
-with open("Models/rf_model.pkl", "rb") as model_file:
-    rf_model = pickle.load(model_file)
+model_name = 'tharu0418/sentence-model'  # Or any other model you are using
+model = TFBertForSequenceClassification.from_pretrained(model_name)
+tokenizer = BertTokenizer.from_pretrained(model_name)
 
-with open("Models/label_encoder.pkl", "rb") as le_file:
-    encoder = pickle.load(le_file)
-
-with open("Models/mlb.pkl", "rb") as mlb_file:
-    mlb = pickle.load(mlb_file)
+with open('Models/label_mapping.pkl', 'rb') as f:
+    label_mapping = pickle.load(f)
 
 
-def strip_to_basic_tokens(text):
-    # Remove double spaces and underscores, then split by commas and lowercase the tokens
-    text = re.sub(r'[_\s]+', ' ', text)
-    tokens = [token.strip().lower() for token in text.split(',')]
-    return tokens
-
-    
 
 # Get diseases names based on symptoms
 @app.route('/get_diseases_name', methods= ['POST'])
@@ -103,52 +83,7 @@ def get_illess_name():
         return jsonify({"error" : str(e)}), 500
 
 
-# Predict user's diseases
-@app.route('/predictthediseases', methods = ['POST'])
-def predictthediseases():
-    try:
 
-        data = request.json
-        symptoms =  data.get('symptoms', "")
-
-        print('symptoms', symptoms)
-        
-        if not symptoms:
-            return jsonify({"error": "No symptoms provided."}), 400
-
-
-        false_return = 'Not_Available'
-        no_null_count = len([s for s in symptoms if s])
-
-        # If user select less than 1 symptom return 'NO'
-        if no_null_count <= 1:
-            return jsonify({"predicted_illness" : false_return})
-
-        basic_tokens = strip_to_basic_tokens(symptoms)
-
-        one_hot_encoded_sample = mlb.transform([basic_tokens])
-
-        one_hot_df = pd.DataFrame(one_hot_encoded_sample, columns=mlb.classes_)
-
-        missing_columns = set(mlb.classes_) - set(one_hot_df.columns)
-        for col in missing_columns:
-            one_hot_df[col] = 0
-
-        one_hot_df = one_hot_df[mlb.classes_]
-
-        y_pred = rf_model.predict(one_hot_df)
-
-        if not y_pred.any():
-            return jsonify({"predicted_disease": "No_Matching"}), 200
-
-        predicted_class_index = np.argmax(y_pred)
-        predicted_disease = encoder.inverse_transform([predicted_class_index])[0]
-
-        return jsonify({"predicted_disease": predicted_disease}), 200
-
-
-    except Exception as e:
-        return jsonify({"error" : str(e)}), 500
     
 # Get illness preventions and treatments
 @app.route('/getpreventions', methods=['POST'])
@@ -195,6 +130,51 @@ def getPreventions():
 
     except Exception as e:
         return jsonify({"error" : str(e)}), 500    
+
+
+
+# setence model functions
+# Function to predict illness
+def predict_illness(text):
+    # Tokenize the input text
+    encoding = tokenizer(text, truncation=True, padding=True, max_length=128, return_tensors="tf")
+    
+    # Get model output
+    outputs = model(encoding)
+    logits = outputs.logits
+    
+    # Get the predicted class index
+    predicted_class = tf.argmax(logits, axis=1).numpy()[0]
+    
+    # Map the predicted class index to the illness (intent)
+    predicted_illness = label_mapping[predicted_class]
+    
+    return predicted_illness
+
+@app.route('/get_sentence', methods= ['POST'])
+def get_sentence():
+    try:
+
+        data = request.json
+        sentence = data.get('sentence')
+
+           # Check if the input is a string
+        if not isinstance(sentence, str):
+            return jsonify({"error": "Invalid sentence"}), 400
+        
+        # Check if the input string is empty
+        if sentence.strip() == "":
+            return jsonify({"error": "Please enter your sentence"}), 400
+
+        # Predict the illness
+        predicted_illness = predict_illness(sentence)
+        
+        # Return the result as a JSON response
+        return jsonify({"symptom": predicted_illness})
+
+        
+    except Exception as e:
+        return jsonify({"error" : str(e)}), 500
 
 
 
