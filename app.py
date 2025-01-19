@@ -7,7 +7,8 @@ import numpy as np
 from sklearn.preprocessing import LabelEncoder
 from transformers import BertTokenizer, TFBertForSequenceClassification
 import tensorflow as tf
-    
+from accelerate import infer_auto_device_map, init_empty_weights, load_checkpoint_and_dispatch
+
 app = Flask(__name__)
 CORS(app)
 
@@ -32,8 +33,22 @@ def getTreatmentDetails():
 
 
 model_name = 'tharu0418/sentence-model'  # Or any other model you are using
-model = TFBertForSequenceClassification.from_pretrained(model_name)
+#model = TFBertForSequenceClassification.from_pretrained(model_name)
 tokenizer = BertTokenizer.from_pretrained(model_name)
+
+# Use Accelerate to load the model efficiently
+print("Initializing model with Accelerate...")
+with init_empty_weights():  # Load the model without weights
+    model = TFBertForSequenceClassification.from_pretrained(model_name, device_map="auto")
+
+# Distribute weights efficiently
+model = load_checkpoint_and_dispatch(
+    model,
+    checkpoint=model_name,
+    device_map=infer_auto_device_map(model),  # Automatically infer device placement
+    offload_folder="offload",  # Folder to offload layers if memory is limited
+    offload_state_dict=True
+)
 
 with open('Models/label_mapping.pkl', 'rb') as f:
     label_mapping = pickle.load(f)
