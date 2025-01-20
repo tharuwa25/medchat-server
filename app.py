@@ -45,10 +45,10 @@ def getTreatmentDetails():
     df_treatments = pd.read_csv('DB/symptom_treatments.csv', encoding='ISO-8859-1')
 
 
-with open('Models/sentence_models/model.pkl', 'rb') as f:
-    model = joblib.load(f)
-with open('Models/sentence_models/vectorizer.pkl', 'rb') as f:
-    vectorize = joblib.load(f)
+# with open('Models/sentence_models/model.pkl', 'rb') as f:
+#     model = joblib.load(f)
+# with open('Models/sentence_models/vectorizer.pkl', 'rb') as f:
+#     vectorize = joblib.load(f)
 
 
 # Load the saved models and encoders **after** defining the class
@@ -81,36 +81,36 @@ def strip_to_basic_tokens(text):
     return tokens
 
 
-def predict_symptom(text):
-    text_vec = vectorize.transform([text])
-    intent_pred = model.predict(text_vec)[0]
-    return intent_pred
+# def predict_symptom(text):
+#     text_vec = vectorize.transform([text])
+#     intent_pred = model.predict(text_vec)[0]
+#     return intent_pred
 
 
-@app.route('/get_sentence', methods= ['POST'])
-def get_sentence():
-    try:
+# @app.route('/get_sentence', methods= ['POST'])
+# def get_sentence():
+#     try:
 
-        data = request.json
-        sentence = data.get('sentence')
+#         data = request.json
+#         sentence = data.get('sentence')
 
-           # Check if the input is a string
-        if not isinstance(sentence, str):
-            return jsonify({"error": "Invalid sentence"}), 400
+#            # Check if the input is a string
+#         if not isinstance(sentence, str):
+#             return jsonify({"error": "Invalid sentence"}), 400
 
-        # Check if the input string is empty
-        if sentence.strip() == "":
-            return jsonify({"error": "Please enter your sentence"}), 400
+#         # Check if the input string is empty
+#         if sentence.strip() == "":
+#             return jsonify({"error": "Please enter your sentence"}), 400
 
-        # Predict the illness
-        predicted_illness = predict_symptom(sentence)
+#         # Predict the illness
+#         predicted_illness = predict_symptom(sentence)
 
-        # Return the result as a JSON response
-        return jsonify({"symptom": predicted_illness})
+#         # Return the result as a JSON response
+#         return jsonify({"symptom": predicted_illness})
 
 
-    except Exception as e:
-        return jsonify({"error" : str(e)}), 500
+    # except Exception as e:
+    #     return jsonify({"error" : str(e)}), 500
 
 
 ########################################
